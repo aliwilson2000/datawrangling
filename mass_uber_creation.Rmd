@@ -1,0 +1,78 @@
+---
+title: "dum"
+author: "Morgan Tucker"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(fastDummies)
+library(readr)
+library(readxl)
+library(dplyr)
+library(caret)
+library(caTools)
+```
+
+
+```{r}
+mass_uber <- read_excel("~/Desktop/demand/csv_proj_folder/uber_df.xlsx")
+#View(final_uber)
+```
+
+
+## Manipulation
+```{r}
+# convert names to lower with spaces as underscores
+names(mass_uber) <- tolower(gsub(" ", "_", names(mass_uber)))
+
+# make col with year quarters
+mass_uber <- mass_uber %>%
+  mutate(quarter_of_year = case_when(
+    month %in% 1:3 ~ "Q1",
+    month %in% 4:6 ~ "Q2",
+    month %in% 7:9 ~ "Q3",
+    month %in% 10:12 ~ "Q4"
+  ))
+
+# Perform one-hot encoding on the 'quarter_of_year' column
+mass_uber <- dummy_cols(mass_uber, select_columns = "quarter_of_year", remove_selected_columns = TRUE)
+# View the modified data frame
+head(mass_uber)
+
+# function to remove outliers based on quantiles
+remove_outliers <- function(data, varname) {
+  # calc lower and upper bounds
+  bounds <- quantile(data[[varname]], probs = c(0.025, 0.975))
+  
+  # filter out outliers
+  data %>% 
+    filter(get(varname) >= bounds[1] & get(varname) <= bounds[2])
+}
+
+# remove outliers from fare_amount and distance_miles
+mass_uber <- remove_outliers(mass_uber, "fare_amount")
+mass_uber <- remove_outliers(mass_uber, "distance_meters")
+mass_uber <- remove_outliers(mass_uber, "distance_miles")
+
+# remove NAs
+mass_uber = na.omit(mass_uber)
+names(mass_uber)
+
+# final desc data
+summary(mass_uber)
+
+```
+```{r}
+library(writexl)
+
+# Write the data frame 'final_uber' to an Excel file
+write_xlsx(mass_uber, path = "~/Desktop/demand/csv_proj_folder/mass_uber_df.xlsx")
+
+```
+
+
